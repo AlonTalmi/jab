@@ -289,6 +289,8 @@ public partial class ContainerGenerator : DiagnosticAnalyzer
                                 codeWriter.Line($"_root = root;");
                             }
                             codeWriter.Line();
+                            
+                            codeWriter.Line($"public Scope CreateScope() => new Scope(_root);");
 
                             codeWriter.Line($"[DebuggerHidden]");
                             codeWriter.Line($"public T GetService<T>() => this is IServiceProvider<T> provider ? provider.GetService() : throw CreateServiceNotFoundException<T>();");
