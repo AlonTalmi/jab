@@ -148,7 +148,7 @@ namespace Jab
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Jab", null)]
     internal
 #endif
-        class ExistingAttribute : Attribute
+    class ExistingAttribute : Attribute
     {
         public Type ServiceType { get; }
         public Type ImplementationType { get; }
