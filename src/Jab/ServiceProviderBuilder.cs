@@ -265,6 +265,31 @@ internal class ServiceProviderBuilder
             return callSite;
         }
 
+        if (serviceType is INamedTypeSymbol { IsGenericType: true } delegateType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(delegateType.ConstructedFrom, _knownTypes.ResolveDelegateType))
+            {
+                var identity = new ServiceIdentity(serviceType, name, null);
+                if (CheckNotNamed(identity) is { } error)
+                {
+                    return error;
+                }
+
+                return CreateResolveDelegateCallSite(identity, delegateType.TypeArguments[0], requiresNamed: false, context);
+            }
+
+            if (SymbolEqualityComparer.Default.Equals(delegateType.ConstructedFrom, _knownTypes.NamedResolveDelegateType))
+            {
+                var identity = new ServiceIdentity(serviceType, name, null);
+                if (CheckNotNamed(identity) is { } error)
+                {
+                    return error;
+                }
+
+                return CreateResolveDelegateCallSite(identity, delegateType.TypeArguments[0], requiresNamed: true, context);
+            }
+        }
+
         if (SymbolEqualityComparer.Default.Equals(serviceType, _knownTypes.IServiceProviderType))
         {
             return BuiltInCallSite(_serviceProviderCallsite);
@@ -723,6 +748,47 @@ internal class ServiceProviderBuilder
         return (callSites, namedParameters, diagnostics);
     }
 
+    private ServiceCallSite? CreateResolveDelegateCallSite(ServiceIdentity identity, ITypeSymbol resolvedType, bool requiresNamed, ServiceResolutionContext context)
+    {
+        if (context.CallSiteCache.TryGet(identity, out var existing))
+        {
+            return existing;
+        }
+
+        Diagnostic? diagnostic = null;
+
+        if (requiresNamed)
+        {
+            if (!HasNamedRegistration(resolvedType, context.ProviderDescription))
+            {
+                diagnostic = Diagnostic.Create(
+                    DiagnosticDescriptors.NamedResolveDelegateServiceNotRegistered,
+                    context.RequestLocation,
+                    resolvedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat));
+            }
+        }
+        else
+        {
+            if (!CanSatisfy(resolvedType, context.ProviderDescription))
+            {
+                diagnostic = Diagnostic.Create(
+                    DiagnosticDescriptors.ResolveDelegateServiceNotRegistered,
+                    context.RequestLocation,
+                    resolvedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat));
+            }
+        }
+
+        if (diagnostic != null)
+        {
+            _context.ReportDiagnostic(diagnostic);
+            return new ErrorCallSite(identity, diagnostic);
+        }
+
+        var callSite = new ResolveDelegateCallSite(identity, resolvedType, requiresNamed);
+        context.CallSiteCache.Add(callSite);
+        return callSite;
+    }
+
     private bool CanSatisfy(ITypeSymbol serviceType, ServiceProviderDescription description)
     {
         INamedTypeSymbol? genericType = null;
@@ -739,6 +805,19 @@ internal class ServiceProviderBuilder
             return true;
         }
 
+        if (genericType != null)
+        {
+            if (SymbolEqualityComparer.Default.Equals(genericType.ConstructedFrom, _knownTypes.ResolveDelegateType))
+            {
+                return CanSatisfy(genericType.TypeArguments[0], description);
+            }
+
+            if (SymbolEqualityComparer.Default.Equals(genericType.ConstructedFrom, _knownTypes.NamedResolveDelegateType))
+            {
+                return HasNamedRegistration(genericType.TypeArguments[0], description);
+            }
+        }
+
         foreach (var registration in description.ServiceRegistrations)
         {
             if (SymbolEqualityComparer.Default.Equals(registration.ServiceType.ConstructedFrom, serviceType))
@@ -750,6 +829,31 @@ internal class ServiceProviderBuilder
                 registration.ServiceType.IsUnboundGenericType &&
                 SymbolEqualityComparer.Default.Equals(registration.ServiceType.ConstructedFrom,
                     genericType.ConstructedFrom))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasNamedRegistration(ITypeSymbol serviceType, ServiceProviderDescription description)
+    {
+        foreach (var registration in description.ServiceRegistrations)
+        {
+            if (registration.Name == null)
+            {
+                continue;
+            }
+
+            if (SymbolEqualityComparer.Default.Equals(registration.ServiceType, serviceType))
+            {
+                return true;
+            }
+
+            if (serviceType is INamedTypeSymbol { IsGenericType: true } genericServiceType &&
+                registration.ServiceType.IsUnboundGenericType &&
+                SymbolEqualityComparer.Default.Equals(registration.ServiceType.ConstructedFrom, genericServiceType.ConstructedFrom))
             {
                 return true;
             }
