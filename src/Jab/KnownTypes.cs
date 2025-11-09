@@ -41,8 +41,9 @@ internal class KnownTypes
 
     public const string ImportAttributeMetadataName = $"Jab.{ImportAttributeTypeName}";
     public const string GenericImportAttributeMetadataName = $"Jab.{ImportAttributeTypeName}`1";
-    
+
     public const string ExistingAttributeMetadataName = $"Jab.{ExistingAttributeTypeName}";
+    public const string GenericExistingAttributeMetadataName = $"Jab.{ExistingAttributeTypeName}`2";
 
     public const string NameAttributePropertyName = "Name";
     public const string InstanceAttributePropertyName = "Instance";
@@ -80,6 +81,7 @@ internal class KnownTypes
     public INamedTypeSymbol ModuleAttribute { get; }
     public INamedTypeSymbol ScopedAttribute { get; }
     public INamedTypeSymbol ExistingAttribute { get; }
+    public INamedTypeSymbol? GenericExistingAttribute { get; }
     public INamedTypeSymbol? GenericScopedAttribute { get; }
     public INamedTypeSymbol? Generic2ScopedAttribute { get; }
     public INamedTypeSymbol? IAsyncDisposableType { get; }
@@ -138,6 +140,7 @@ internal class KnownTypes
         FromNamedServicesAttribute = GetTypeByMetadataNameOrThrow(assemblySymbol, FromNamedServicesAttributeMetadataName);
 
         ExistingAttribute = GetTypeByMetadataNameOrThrow(assemblySymbol, ExistingAttributeMetadataName);
+        GenericExistingAttribute = assemblySymbol.GetTypeByMetadataName(GenericExistingAttributeMetadataName);
     }
 
     public static bool HasKnownTypes(IModuleSymbol sourceModule)

@@ -1050,7 +1050,10 @@ internal class ServiceProviderBuilder
             return true;
         }
 
-        if (SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, knownTypes.ExistingAttribute) &&
+        if ((SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, knownTypes.ExistingAttribute) ||
+             knownTypes.GenericExistingAttribute is not null &&
+             SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass.ConstructedFrom,
+                 knownTypes.GenericExistingAttribute)) &&
             TryCreateExistingRegistration(attributeData, out registration))
         {
             return true;

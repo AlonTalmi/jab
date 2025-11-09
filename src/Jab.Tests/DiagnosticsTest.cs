@@ -426,6 +426,22 @@ public partial class Container {{}}
         }
 
         [Fact]
+        public async Task AllowsExistingGenericAttribute()
+        {
+            string testCode = @"
+interface IService { }
+class Implementation : IService { }
+
+[ServiceProvider]
+[Singleton(typeof(Implementation))]
+[Existing<IService, Implementation>]
+public partial class Container { }
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode);
+        }
+
+        [Fact]
         public async Task ProducesJAB0021WhenExistingImplementationDoesNotImplementService()
         {
             string testCode = @"

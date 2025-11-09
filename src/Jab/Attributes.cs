@@ -257,6 +257,21 @@ namespace Jab
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Jab", null)]
     internal
 #endif
+    class ExistingAttribute<TService, TImpl> : ExistingAttribute where TImpl: TService
+    {
+        public ExistingAttribute() : base(typeof(TService), typeof(TImpl))
+        {
+        }
+    }
+
+
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = true, Inherited = true)]
+#if JAB_ATTRIBUTES_PACKAGE
+    public
+#else
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Jab", null)]
+    internal
+#endif
     class SingletonAttribute<TService> : SingletonAttribute
     {
         public SingletonAttribute() : base(typeof(TService))
