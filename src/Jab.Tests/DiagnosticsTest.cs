@@ -424,5 +424,44 @@ public partial class Container {{}}
                     .WithLocation(1)
                     .WithArguments("IDependency?", "Service"));
         }
+
+        [Fact]
+        public async Task ProducesJAB0021WhenExistingImplementationDoesNotImplementService()
+        {
+            string testCode = @"
+interface IService { }
+class Implementation { }
+
+[ServiceProvider]
+[Singleton(typeof(Implementation))]
+[{|#1:Existing(typeof(IService), typeof(Implementation))|}]
+public partial class Container { }
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0021")
+                    .WithLocation(1)
+                    .WithArguments("Implementation", "IService"));
+        }
+
+        [Fact]
+        public async Task ProducesJAB0022WhenExistingImplementationIsNotRegistered()
+        {
+            string testCode = @"
+interface IService { }
+class Implementation : IService { }
+
+[ServiceProvider]
+[{|#1:Existing(typeof(IService), typeof(Implementation))|}]
+public partial class Container { }
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0022")
+                    .WithLocation(1)
+                    .WithArguments("Implementation", "IService"));
+        }
     }
 }
