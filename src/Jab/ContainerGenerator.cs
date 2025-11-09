@@ -193,6 +193,19 @@ public partial class ContainerGenerator : DiagnosticAnalyzer
                     }
                 });
                 break;
+            case ResolveDelegateCallSite resolveDelegateCallSite:
+                valueCallback(codeWriter, w =>
+                {
+                    if (resolveDelegateCallSite.UsesName)
+                    {
+                        w.Append($"new global::Jab.NamedResolve<{resolveDelegateCallSite.ResolvedType}>(GetService<{resolveDelegateCallSite.ResolvedType}>)");
+                    }
+                    else
+                    {
+                        w.Append($"new global::Jab.Resolve<{resolveDelegateCallSite.ResolvedType}>(_ => GetService<{resolveDelegateCallSite.ResolvedType}>())");
+                    }
+                });
+                break;
             case ServiceProviderCallSite:
                 valueCallback(codeWriter, w => w.AppendRaw("this"));
                 break;

@@ -74,6 +74,14 @@ internal static class DiagnosticDescriptors
         "Only string service keys are supported",
         "Service key '{0}' is not supported, only string keys are supported", "Usage", DiagnosticSeverity.Error, true);
 
+    public static readonly DiagnosticDescriptor ResolveDelegateServiceNotRegistered = new("JAB0021",
+        "Resolve delegate requires registered service",
+        "Resolve delegate requires the service '{0}' to be registered", "Usage", DiagnosticSeverity.Error, true);
+
+    public static readonly DiagnosticDescriptor NamedResolveDelegateServiceNotRegistered = new("JAB0022",
+        "NamedResolve delegate requires named service registration",
+        "NamedResolve delegate requires the service '{0}' to be registered with a name", "Usage", DiagnosticSeverity.Error, true);
+
     public static readonly DiagnosticDescriptor NullableServiceNotRegistered = new("JAB0013",
         "Not registered nullable dependency without a default value",
         "The nullable service '{0}' requested to construct '{1}' is not registered. Add a default value to make the service reference optional", "Usage", DiagnosticSeverity.Error, true);

@@ -130,6 +130,76 @@ public partial class Container {{}}
         }
 
         [Fact]
+        public async Task DoesNotProduceDiagnosticForResolveDelegateWhenServiceRegistered()
+        {
+            string testCode = @"
+interface IService { }
+class Service : IService { }
+class Consumer { public Consumer(Resolve<IService> resolver) { } }
+
+[ServiceProvider]
+[Transient(typeof(IService), typeof(Service))]
+[Transient(typeof(Consumer))]
+public partial class Container { }
+";
+            await Verify.VerifyAnalyzerAsync(testCode);
+        }
+
+        [Fact]
+        public async Task ProducesDiagnosticWhenResolveDelegateServiceNotRegistered()
+        {
+            string testCode = @"
+interface IService { }
+class Consumer { public Consumer({|#1:Resolve<IService>|} resolver) { } }
+
+[ServiceProvider]
+[Transient(typeof(Consumer))]
+public partial class Container { }
+";
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0021")
+                    .WithLocation(1)
+                    .WithArguments("IService"));
+        }
+
+        [Fact]
+        public async Task ProducesDiagnosticWhenNamedResolveDelegateHasNoNamedService()
+        {
+            string testCode = @"
+interface IService { }
+class Service : IService { }
+class Consumer { public Consumer({|#1:NamedResolve<IService>|} resolver) { } }
+
+[ServiceProvider]
+[Transient(typeof(IService), typeof(Service))]
+[Transient(typeof(Consumer))]
+public partial class Container { }
+";
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0022")
+                    .WithLocation(1)
+                    .WithArguments("IService"));
+        }
+
+        [Fact]
+        public async Task DoesNotProduceDiagnosticForNamedResolveWhenNamedServiceRegistered()
+        {
+            string testCode = @"
+interface IService { }
+class Service : IService { }
+class Consumer { public Consumer(NamedResolve<IService> resolver) { } }
+
+[ServiceProvider]
+[Singleton(typeof(IService), typeof(Service), Name = "Named")]
+[Transient(typeof(Consumer))]
+public partial class Container { }
+";
+            await Verify.VerifyAnalyzerAsync(testCode);
+        }
+
+        [Fact]
         public async Task ProducesJAB0002WhenRequiredDependenciesNotFound()
         {
             string testCode = $@"

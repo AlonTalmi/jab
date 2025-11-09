@@ -10,6 +10,8 @@ internal class KnownTypes
     public const string ServiceProviderModuleAttributeShortName = "ServiceProviderModule";
     public const string ImportAttributeShortName = "Import";
     public const string FromNamedServicesAttributeShortName = "FromNamedServices";
+    public const string ResolveDelegateShortName = "Resolve";
+    public const string NamedResolveDelegateShortName = "NamedResolve";
 
     public const string TransientAttributeTypeName = $"{TransientAttributeShortName}Attribute";
     public const string SingletonAttributeTypeName = $"{SingletonAttributeShortName}Attribute";
@@ -19,6 +21,8 @@ internal class KnownTypes
 
     public const string ImportAttributeTypeName = $"{ImportAttributeShortName}Attribute";
     public const string FromNamedServicesAttributeName = $"{FromNamedServicesAttributeShortName}Attribute";
+    public const string ResolveDelegateTypeName = ResolveDelegateShortName;
+    public const string NamedResolveDelegateTypeName = NamedResolveDelegateShortName;
 
     public const string TransientAttributeMetadataName = $"Jab.{TransientAttributeTypeName}";
     public const string GenericTransientAttributeMetadataName = $"Jab.{TransientAttributeTypeName}`1";
@@ -51,6 +55,8 @@ internal class KnownTypes
     private const string IKeyedServiceProviderMetadataName = "Microsoft.Extensions.DependencyInjection.IKeyedServiceProvider";
     private const string FromKeyedServicesAttributeMetadataName = "Microsoft.Extensions.DependencyInjection.FromKeyedServicesAttribute";
     private const string FromNamedServicesAttributeMetadataName = $"Jab.{FromNamedServicesAttributeName}";
+    private const string ResolveDelegateMetadataName = $"Jab.{ResolveDelegateTypeName}`1";
+    private const string NamedResolveDelegateMetadataName = $"Jab.{NamedResolveDelegateTypeName}`1";
 
     private const string IServiceScopeFactoryMetadataName =
         "Microsoft.Extensions.DependencyInjection.IServiceScopeFactory";
@@ -83,6 +89,8 @@ internal class KnownTypes
     public INamedTypeSymbol? IKeyedServiceProviderType { get; }
     public INamedTypeSymbol? FromKeyedServicesAttribute { get; }
     public INamedTypeSymbol? FromNamedServicesAttribute { get; }
+    public INamedTypeSymbol ResolveDelegateType { get; }
+    public INamedTypeSymbol NamedResolveDelegateType { get; }
 
     public KnownTypes(Compilation compilation, IModuleSymbol module, IAssemblySymbol assemblySymbol)
     {
@@ -130,6 +138,8 @@ internal class KnownTypes
 
         ModuleAttribute = GetTypeByMetadataNameOrThrow(assemblySymbol, ServiceProviderModuleAttributeMetadataName);
         FromNamedServicesAttribute = GetTypeByMetadataNameOrThrow(assemblySymbol, FromNamedServicesAttributeMetadataName);
+        ResolveDelegateType = GetTypeByMetadataNameOrThrow(assemblySymbol, ResolveDelegateMetadataName);
+        NamedResolveDelegateType = GetTypeByMetadataNameOrThrow(assemblySymbol, NamedResolveDelegateMetadataName);
     }
 
     public static bool HasKnownTypes(IModuleSymbol sourceModule)

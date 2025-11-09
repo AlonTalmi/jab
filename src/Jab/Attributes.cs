@@ -286,6 +286,22 @@ namespace Jab
     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Jab", null)]
     internal
 #endif
+    delegate T Resolve<T>(string name);
+
+#if JAB_ATTRIBUTES_PACKAGE
+    public
+#else
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Jab", null)]
+    internal
+#endif
+    delegate T NamedResolve<T>(string name);
+
+#if JAB_ATTRIBUTES_PACKAGE
+    public
+#else
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Jab", null)]
+    internal
+#endif
     static class JabHelpers
     {
         public static InvalidOperationException CreateServiceNotFoundException<T>(string? name = null) =>
