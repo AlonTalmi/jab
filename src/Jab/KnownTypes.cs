@@ -10,6 +10,7 @@ internal class KnownTypes
     public const string ServiceProviderModuleAttributeShortName = "ServiceProviderModule";
     public const string ImportAttributeShortName = "Import";
     public const string FromNamedServicesAttributeShortName = "FromNamedServices";
+    public const string ExistingAttributeShortName = "Existing";
 
     public const string TransientAttributeTypeName = $"{TransientAttributeShortName}Attribute";
     public const string SingletonAttributeTypeName = $"{SingletonAttributeShortName}Attribute";
@@ -19,6 +20,8 @@ internal class KnownTypes
 
     public const string ImportAttributeTypeName = $"{ImportAttributeShortName}Attribute";
     public const string FromNamedServicesAttributeName = $"{FromNamedServicesAttributeShortName}Attribute";
+    
+    public const string ExistingAttributeTypeName = $"{ExistingAttributeShortName}Attribute";
 
     public const string TransientAttributeMetadataName = $"Jab.{TransientAttributeTypeName}";
     public const string GenericTransientAttributeMetadataName = $"Jab.{TransientAttributeTypeName}`1";
@@ -38,6 +41,8 @@ internal class KnownTypes
 
     public const string ImportAttributeMetadataName = $"Jab.{ImportAttributeTypeName}";
     public const string GenericImportAttributeMetadataName = $"Jab.{ImportAttributeTypeName}`1";
+    
+    public const string ExistingAttributeMetadataName = $"Jab.{ExistingAttributeTypeName}";
 
     public const string NameAttributePropertyName = "Name";
     public const string InstanceAttributePropertyName = "Instance";
@@ -74,6 +79,7 @@ internal class KnownTypes
 
     public INamedTypeSymbol ModuleAttribute { get; }
     public INamedTypeSymbol ScopedAttribute { get; }
+    public INamedTypeSymbol ExistingAttribute { get; }
     public INamedTypeSymbol? GenericScopedAttribute { get; }
     public INamedTypeSymbol? Generic2ScopedAttribute { get; }
     public INamedTypeSymbol? IAsyncDisposableType { get; }
@@ -130,6 +136,8 @@ internal class KnownTypes
 
         ModuleAttribute = GetTypeByMetadataNameOrThrow(assemblySymbol, ServiceProviderModuleAttributeMetadataName);
         FromNamedServicesAttribute = GetTypeByMetadataNameOrThrow(assemblySymbol, FromNamedServicesAttributeMetadataName);
+
+        ExistingAttribute = GetTypeByMetadataNameOrThrow(assemblySymbol, ExistingAttributeMetadataName);
     }
 
     public static bool HasKnownTypes(IModuleSymbol sourceModule)

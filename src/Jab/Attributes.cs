@@ -137,6 +137,28 @@ namespace Jab
             ImplementationType = implementationType;
         }
     }
+    
+    /// <summary>
+    /// Binds the service type to an existing implementation type.
+    /// </summary>
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = true, Inherited = true)]
+#if JAB_ATTRIBUTES_PACKAGE
+    public
+#else
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("Jab", null)]
+    internal
+#endif
+        class ExistingAttribute : Attribute
+    {
+        public Type ServiceType { get; }
+        public Type ImplementationType { get; }
+
+        public ExistingAttribute(Type serviceType, Type implementationType)
+        {
+            ServiceType = serviceType;
+            ImplementationType = implementationType;
+        }
+    }
 
 
     [AttributeUsage(AttributeTargets.Parameter, AllowMultiple = false, Inherited = true)]
@@ -156,7 +178,7 @@ namespace Jab
         }
     }
 
-#if GENERIC_ATTRIBUTES
+#if GENERIC_ATTRIBUTES && !UNITY_EDITOR
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = true, Inherited = true)]
 #if JAB_ATTRIBUTES_PACKAGE
     public
