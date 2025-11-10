@@ -178,7 +178,7 @@ namespace Jab
         }
     }
 
-#if GENERIC_ATTRIBUTES && !UNITY_EDITOR
+#if GENERIC_ATTRIBUTES
     [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = true, Inherited = true)]
 #if JAB_ATTRIBUTES_PACKAGE
     public

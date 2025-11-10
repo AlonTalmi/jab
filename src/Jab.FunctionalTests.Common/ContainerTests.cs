@@ -1485,11 +1485,13 @@ namespace JabTests
         {
             var c = new BindAnotherTypeToSameImplementationContainer();
 
-            c.GetService<ServiceImplementation>();
-            c.GetService<IService>();
-            c.GetService<IService1>();
-            c.GetService<IService2>();
-            c.GetService<IService3>();
+            var impl = c.GetService<ServiceImplementation>();
+            var s = c.GetService<IService>();
+            var s1 = c.GetService<IService1>();
+            var s2 = c.GetService<IService2>();
+            var s3 = c.GetService<IService3>();
+            
+            Assert.All(new object[]{s, s1, s2, s3}, o => Assert.Same(o, impl));
         }
         
         [ServiceProvider]

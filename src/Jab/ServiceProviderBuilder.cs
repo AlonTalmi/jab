@@ -1156,8 +1156,8 @@ internal class ServiceProviderBuilder
             factoryMember,
             attributeData.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
             memberLocation,
-            resolveFromExisting: false,
-            existingImplementationMissing: false);
+            ResolveFromExisting: false,
+            ExistingImplementationMissing: false);
 
         return true;
     }
@@ -1196,14 +1196,14 @@ internal class ServiceProviderBuilder
         registration = new ServiceRegistration(
             ServiceLifetime.Transient,
             serviceType,
-            name: null,
+            Name: null,
             implementationType,
-            instanceMember: null,
-            factoryMember: null,
+            InstanceMember: null,
+            FactoryMember: null,
             attributeData.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
             MemberLocation.Root,
-            resolveFromExisting: true,
-            existingImplementationMissing: false);
+            ResolveFromExisting: true,
+            ExistingImplementationMissing: false);
 
         return true;
     }
