@@ -74,6 +74,14 @@ internal static class DiagnosticDescriptors
         "Only string service keys are supported",
         "Service key '{0}' is not supported, only string keys are supported", "Usage", DiagnosticSeverity.Error, true);
 
+    public static readonly DiagnosticDescriptor ExistingImplementationMustImplementService = new("JAB0021",
+        "Existing implementation type must be assignable to service type",
+        "Existing implementation type '{0}' must be assignable to service type '{1}'", "Usage", DiagnosticSeverity.Error, true);
+
+    public static readonly DiagnosticDescriptor ExistingImplementationTypeNotRegistered = new("JAB0022",
+        "Existing implementation type must be registered",
+        "Existing implementation type '{0}' referenced by service '{1}' is not registered", "Usage", DiagnosticSeverity.Error, true);
+
     public static readonly DiagnosticDescriptor NullableServiceNotRegistered = new("JAB0013",
         "Not registered nullable dependency without a default value",
         "The nullable service '{0}' requested to construct '{1}' is not registered. Add a default value to make the service reference optional", "Usage", DiagnosticSeverity.Error, true);

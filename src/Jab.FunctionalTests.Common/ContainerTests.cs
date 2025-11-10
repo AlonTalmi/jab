@@ -1479,6 +1479,28 @@ namespace JabTests
         [Singleton(typeof(IService), typeof(ServiceImplementation))]
         [Singleton(typeof(NestedNS.IService), typeof(NestedNS.ServiceImplementation))]
         internal partial class NameCollisionContainer { }
+
+        [Fact]
+        public void CanBindNewTypeToTheSameImplementation()
+        {
+            var c = new BindAnotherTypeToSameImplementationContainer();
+
+            var impl = c.GetService<ServiceImplementation>();
+            var s = c.GetService<IService>();
+            var s1 = c.GetService<IService1>();
+            var s2 = c.GetService<IService2>();
+            var s3 = c.GetService<IService3>();
+            
+            Assert.All(new object[]{s, s1, s2, s3}, o => Assert.Same(o, impl));
+        }
+        
+        [ServiceProvider]
+        [Singleton(typeof(ServiceImplementation))]
+        [Existing(typeof(IService), typeof(ServiceImplementation))]
+        [Existing(typeof(IService1), typeof(ServiceImplementation))]
+        [Existing(typeof(IService2), typeof(ServiceImplementation))]
+        [Existing(typeof(IService3), typeof(ServiceImplementation))]
+        internal partial class BindAnotherTypeToSameImplementationContainer {}
     }
 }
 

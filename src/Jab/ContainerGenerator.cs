@@ -180,6 +180,13 @@ public partial class ContainerGenerator : DiagnosticAnalyzer
                     w.Append($")");
                 });
                 break;
+            case ExistingCallSite existingCallSite:
+                valueCallback(codeWriter, w =>
+                {
+                    w.Append($"({existingCallSite.Identity.Type})");
+                    WriteResolutionCall(w, existingCallSite.Target.Identity, rootReference, typeBaseNameMap);
+                });
+                break;
             case ArrayServiceCallSite arrayServiceCallSite:
                 valueCallback(codeWriter, w =>
                 {
@@ -805,6 +812,8 @@ public partial class ContainerGenerator : DiagnosticAnalyzer
         DiagnosticDescriptors.OnlyStringKeysAreSupported,
         DiagnosticDescriptors.NullableServiceNotRegistered,
         DiagnosticDescriptors.NullableServiceRegistered,
+        DiagnosticDescriptors.ExistingImplementationMustImplementService,
+        DiagnosticDescriptors.ExistingImplementationTypeNotRegistered,
     }.ToImmutableArray();
 
     private static string ReadAttributesFile()
