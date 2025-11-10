@@ -562,7 +562,7 @@ public partial class Container
                 DiagnosticResult
                     .CompilerError("JAB0026")
                     .WithLocation(1)
-                    .WithArguments("CreatePublisher", "System.Object", "IPublisher<>")
+                    .WithArguments("CreatePublisher", "object", "IPublisher<>")
             );
         }
 

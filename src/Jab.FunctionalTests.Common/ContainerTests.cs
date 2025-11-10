@@ -341,10 +341,28 @@ namespace JabTests
             Assert.IsType<AnotherServiceImplementation>(service.InnerService);
         }
 
-        [ServiceProvider(RootServices = new[] { typeof(IService<IAnotherService>) })]
+        [ServiceProvider]
         [Transient(typeof(IService<>), typeof(ServiceImplementation<>))]
         [Transient(typeof(IAnotherService), typeof(AnotherServiceImplementation))]
         internal partial class CanResolveOpenGenericServiceContainer { }
+        
+        [Fact]
+        public void CanResolveOpenGenericServiceFromConstructor()
+        {
+            CanResolveOpenGenericServiceFromConstructorContainer c = new();
+            var service = c.GetService<IService>();
+            Assert.IsType<ServiceImplementationWithGenericServiceInConstructor>(service);
+            var genericService = ((ServiceImplementationWithGenericServiceInConstructor)service).GenericService;
+            Assert.IsType<ServiceImplementation<IAnotherService>>(genericService);
+            var innerService = genericService.InnerService;
+            Assert.IsType<AnotherServiceImplementation>(innerService);
+        }
+
+        [ServiceProvider]
+        [Transient(typeof(IService<>), typeof(ServiceImplementation<>))]
+        [Transient(typeof(IService), typeof(ServiceImplementationWithGenericServiceInConstructor))]
+        [Transient(typeof(IAnotherService), typeof(AnotherServiceImplementation))]
+        internal partial class CanResolveOpenGenericServiceFromConstructorContainer { }
 
         [Fact]
         public void CanResolveEnumerableOfMixedOpenGenericService()
