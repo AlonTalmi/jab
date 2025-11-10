@@ -65,12 +65,14 @@ internal class SyntaxCollector : ISyntaxReceiver
                 case KnownTypes.TransientAttributeShortName:
                 case KnownTypes.SingletonAttributeShortName:
                 case KnownTypes.ScopedAttributeShortName:
+                case KnownTypes.ExistingAttributeShortName:
                 case KnownTypes.CompositionRootAttributeShortName:
                 case KnownTypes.ServiceProviderModuleAttributeShortName:
                 case KnownTypes.ImportAttributeShortName:
                 case KnownTypes.TransientAttributeTypeName:
                 case KnownTypes.SingletonAttributeTypeName:
                 case KnownTypes.ScopedAttributeTypeName:
+                case KnownTypes.ExistingAttributeTypeName:
                 case KnownTypes.CompositionRootAttributeTypeName:
                 case KnownTypes.ServiceProviderModuleAttributeTypeName:
                 case KnownTypes.ImportAttributeTypeName:

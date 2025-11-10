@@ -364,6 +364,44 @@ internal class ServiceProviderBuilder
                     factoryMember: constructedFactoryMethod,
                     context: context);
             }
+            else if (registration.ResolveFromExisting)
+            {
+                if (registration.ImplementationType == null)
+                {
+                    throw new InvalidOperationException("Existing registration must specify implementation type.");
+                }
+
+                var implementationType = registration.ImplementationType;
+                if (implementationType.IsUnboundGenericType)
+                {
+                    implementationType = implementationType.ConstructedFrom.Construct(
+                        genericType.TypeArguments,
+                        genericType.TypeArgumentNullableAnnotations);
+                }
+
+                var implementationCallSite = GetCallSite(
+                    implementationType,
+                    name: null,
+                    context.WithRequestLocation(registration.Location));
+
+                if (implementationCallSite == null)
+                {
+                    var diagnostic = Diagnostic.Create(
+                        DiagnosticDescriptors.ExistingImplementationTypeNotRegistered,
+                        registration.Location,
+                        implementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                        registration.ServiceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat));
+                    if (!registration.ExistingImplementationMissing)
+                    {
+                        _context.ReportDiagnostic(diagnostic);
+                    }
+                    callSite = new ErrorCallSite(identity, diagnostic);
+                }
+                else
+                {
+                    callSite = new ExistingCallSite(identity, genericType, implementationCallSite);
+                }
+            }
             else if (registration.ImplementationType != null)
             {
                 var implementationType = registration.ImplementationType;
@@ -540,6 +578,36 @@ internal class ServiceProviderBuilder
                     registration.MemberLocation,
                     factoryMember,
                     context);
+            }
+            else if (registration.ResolveFromExisting)
+            {
+                if (registration.ImplementationType == null)
+                {
+                    throw new InvalidOperationException("Existing registration must specify implementation type.");
+                }
+
+                var implementationCallSite = GetCallSite(
+                    registration.ImplementationType,
+                    name: null,
+                    context.WithRequestLocation(registration.Location));
+
+                if (implementationCallSite == null)
+                {
+                    var diagnostic = Diagnostic.Create(
+                        DiagnosticDescriptors.ExistingImplementationTypeNotRegistered,
+                        registration.Location,
+                        registration.ImplementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                        registration.ServiceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat));
+                    if (!registration.ExistingImplementationMissing)
+                    {
+                        _context.ReportDiagnostic(diagnostic);
+                    }
+                    callSite = new ErrorCallSite(identity, diagnostic);
+                }
+                else
+                {
+                    callSite = new ExistingCallSite(identity, registration.ServiceType, implementationCallSite);
+                }
             }
             else
             {
@@ -890,6 +958,29 @@ internal class ServiceProviderBuilder
             }
         }
 
+        for (int i = 0; i < registrations.Count; i++)
+        {
+            var registration = registrations[i];
+            if (registration.ResolveFromExisting && registration.ImplementationType is { } implementationType)
+            {
+                bool implementationRegistered = registrations.Any(r =>
+                    !r.ResolveFromExisting &&
+                    r.Name == null &&
+                    SymbolEqualityComparer.Default.Equals(r.ServiceType, implementationType));
+
+                if (!implementationRegistered)
+                {
+                    _context.ReportDiagnostic(Diagnostic.Create(
+                        DiagnosticDescriptors.ExistingImplementationTypeNotRegistered,
+                        registration.Location,
+                        implementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                        registration.ServiceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+
+                    registrations[i] = registration with { ExistingImplementationMissing = true };
+                }
+            }
+        }
+
         if (isCompositionRoot)
         {
             return new ServiceProviderDescription(registrations, rootServices.ToArray(), location);
@@ -1009,6 +1100,15 @@ internal class ServiceProviderBuilder
             return true;
         }
 
+        if ((SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass, knownTypes.ExistingAttribute) ||
+             knownTypes.GenericExistingAttribute is not null &&
+             SymbolEqualityComparer.Default.Equals(attributeData.AttributeClass.ConstructedFrom,
+                 knownTypes.GenericExistingAttribute)) &&
+            TryCreateExistingRegistration(attributeData, out registration))
+        {
+            return true;
+        }
+
         return false;
     }
 
@@ -1105,7 +1205,55 @@ internal class ServiceProviderBuilder
             instanceMember,
             factoryMember,
             attributeData.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
-            memberLocation);
+            memberLocation,
+            ResolveFromExisting: false,
+            ExistingImplementationMissing: false);
+
+        return true;
+    }
+
+    private bool TryCreateExistingRegistration(
+        AttributeData attributeData,
+        [NotNullWhen(true)] out ServiceRegistration? registration)
+    {
+        registration = null;
+
+        INamedTypeSymbol serviceType;
+        INamedTypeSymbol implementationType;
+
+        if (attributeData.AttributeClass is { IsGenericType: true } attributeClass)
+        {
+            serviceType = (INamedTypeSymbol)attributeClass.TypeArguments[0];
+            implementationType = (INamedTypeSymbol)attributeClass.TypeArguments[1];
+        }
+        else
+        {
+            serviceType = ExtractType(attributeData.ConstructorArguments[0]);
+            implementationType = ExtractType(attributeData.ConstructorArguments[1]);
+        }
+
+        var conversion = _context.Compilation.ClassifyConversion(implementationType, serviceType);
+        if (!conversion.Exists || (!conversion.IsIdentity && !conversion.IsImplicit))
+        {
+            _context.ReportDiagnostic(Diagnostic.Create(
+                DiagnosticDescriptors.ExistingImplementationMustImplementService,
+                attributeData.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
+                implementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                serviceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat)));
+            return false;
+        }
+
+        registration = new ServiceRegistration(
+            ServiceLifetime.Transient,
+            serviceType,
+            Name: null,
+            implementationType,
+            InstanceMember: null,
+            FactoryMember: null,
+            attributeData.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
+            MemberLocation.Root,
+            ResolveFromExisting: true,
+            ExistingImplementationMissing: false);
 
         if (!ValidateOpenGenericRegistration(registration))
         {
