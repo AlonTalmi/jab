@@ -37,34 +37,8 @@ internal class ServiceProviderBuilder
     private static INamedTypeSymbol GetGenericDefinition(INamedTypeSymbol type) =>
         type.IsDefinition ? type : type.ConstructedFrom;
 
-    private static bool IsAssignableToOpenGeneric(INamedTypeSymbol serviceType, INamedTypeSymbol candidateType)
-    {
-        var serviceDefinition = GetGenericDefinition(serviceType);
-        var candidateDefinition = GetGenericDefinition(candidateType);
-
-        if (SymbolEqualityComparer.Default.Equals(candidateDefinition, serviceDefinition))
-        {
-            return true;
-        }
-
-        for (var baseType = candidateDefinition.BaseType; baseType != null; baseType = baseType.BaseType)
-        {
-            if (SymbolEqualityComparer.Default.Equals(GetGenericDefinition(baseType), serviceDefinition))
-            {
-                return true;
-            }
-        }
-
-        foreach (var implementedInterface in candidateDefinition.AllInterfaces)
-        {
-            if (SymbolEqualityComparer.Default.Equals(GetGenericDefinition(implementedInterface), serviceDefinition))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
+    private static ImmutableArray<NullableAnnotation> CreateNoneAnnotations(int length) =>
+        ImmutableArray.CreateRange(Enumerable.Repeat(NullableAnnotation.None, length));
 
     public ServiceProvider[] BuildRoots()
     {
@@ -1162,6 +1136,11 @@ internal class ServiceProviderBuilder
             isValid = false;
         }
 
+        var serviceDefinition = GetGenericDefinition(registration.ServiceType);
+        var serviceTypeArguments = ImmutableArray.CreateRange(serviceDefinition.TypeParameters, static p => (ITypeSymbol)p);
+        var serviceTypeAnnotations = CreateNoneAnnotations(serviceDefinition.Arity);
+        var constructedServiceType = serviceDefinition.Construct(serviceTypeArguments, serviceTypeAnnotations);
+
         if (registration.ImplementationType != null)
         {
             var implementationDefinition = GetGenericDefinition(registration.ImplementationType);
@@ -1189,16 +1168,19 @@ internal class ServiceProviderBuilder
                     _context.ReportDiagnostic(diagnostic);
                     isValid = false;
                 }
-
-                if (!IsAssignableToOpenGeneric(registration.ServiceType, implementationDefinition))
+                else
                 {
-                    var diagnostic = Diagnostic.Create(
-                        DiagnosticDescriptors.OpenGenericImplementationNotAssignable,
-                        location,
-                        registration.ImplementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                        serviceDisplay);
-                    _context.ReportDiagnostic(diagnostic);
-                    isValid = false;
+                    var constructedImplementation = implementationDefinition.Construct(serviceTypeArguments, serviceTypeAnnotations);
+                    if (!_context.Compilation.ClassifyConversion(constructedImplementation, constructedServiceType).IsImplicit)
+                    {
+                        var diagnostic = Diagnostic.Create(
+                            DiagnosticDescriptors.OpenGenericImplementationNotAssignable,
+                            location,
+                            registration.ImplementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                            serviceDisplay);
+                        _context.ReportDiagnostic(diagnostic);
+                        isValid = false;
+                    }
                 }
             }
         }
@@ -1241,31 +1223,34 @@ internal class ServiceProviderBuilder
                     _context.ReportDiagnostic(diagnostic);
                     isValid = false;
                 }
-                else if (factoryMethod.ReturnType is INamedTypeSymbol returnNamedType)
+                else
                 {
-                    var returnDefinition = GetGenericDefinition(returnNamedType);
-                    if (!IsAssignableToOpenGeneric(registration.ServiceType, returnDefinition))
+                    var constructedFactoryMethod = factoryMethod.ConstructedFrom.Construct(serviceTypeArguments, serviceTypeAnnotations);
+                    if (constructedFactoryMethod.ReturnType is INamedTypeSymbol returnNamedType)
+                    {
+                        if (!_context.Compilation.ClassifyConversion(returnNamedType, constructedServiceType).IsImplicit)
+                        {
+                            var diagnostic = Diagnostic.Create(
+                                DiagnosticDescriptors.OpenGenericFactoryReturnTypeNotAssignable,
+                                location,
+                                factoryMethod.Name,
+                                returnNamedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                                serviceDisplay);
+                            _context.ReportDiagnostic(diagnostic);
+                            isValid = false;
+                        }
+                    }
+                    else
                     {
                         var diagnostic = Diagnostic.Create(
                             DiagnosticDescriptors.OpenGenericFactoryReturnTypeNotAssignable,
                             location,
                             factoryMethod.Name,
-                            returnNamedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                            factoryMethod.ReturnType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
                             serviceDisplay);
                         _context.ReportDiagnostic(diagnostic);
                         isValid = false;
                     }
-                }
-                else
-                {
-                    var diagnostic = Diagnostic.Create(
-                        DiagnosticDescriptors.OpenGenericFactoryReturnTypeNotAssignable,
-                        location,
-                        factoryMethod.Name,
-                        factoryMethod.ReturnType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
-                        serviceDisplay);
-                    _context.ReportDiagnostic(diagnostic);
-                    isValid = false;
                 }
             }
         }
