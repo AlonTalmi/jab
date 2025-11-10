@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Jab;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Testing;
 using Xunit;
@@ -434,7 +435,7 @@ class Implementation : IService { }
 
 [ServiceProvider]
 [Singleton(typeof(Implementation))]
-[Existing<IService, Implementation>]
+[Existing(typeof(IService), typeof(Implementation))]
 public partial class Container { }
 ";
 
@@ -481,7 +482,7 @@ public partial class Container { }
         }
 
         [Fact]
-        public async Task ProducesJAB0021WhenOpenGenericRegistrationUsesInstance()
+        public async Task ProducesJAB0023WhenOpenGenericRegistrationUsesInstance()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -496,14 +497,14 @@ public partial class Container
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0021")
+                    .CompilerError("JAB0023")
                     .WithLocation(1)
                     .WithArguments("IPublisher<>")
             );
         }
 
         [Fact]
-        public async Task ProducesJAB0022WhenOpenGenericImplementationIsClosed()
+        public async Task ProducesJAB0024WhenOpenGenericImplementationIsClosed()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -515,14 +516,14 @@ public partial class Container { }
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0022")
+                    .CompilerError("JAB0024")
                     .WithLocation(1)
                     .WithArguments("ClosedPublisher", "IPublisher<>")
             );
         }
 
         [Fact]
-        public async Task ProducesJAB0023WhenOpenGenericImplementationArityMismatches()
+        public async Task ProducesJAB0025WhenOpenGenericImplementationArityMismatches()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -534,14 +535,14 @@ public partial class Container { }
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0023")
+                    .CompilerError("JAB0025")
                     .WithLocation(1)
                     .WithArguments("Publisher<,>", "IPublisher<>", 1)
             );
         }
 
         [Fact]
-        public async Task ProducesJAB0024WhenOpenGenericImplementationNotAssignable()
+        public async Task ProducesJAB0026WhenOpenGenericImplementationNotAssignable()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -553,14 +554,14 @@ public partial class Container { }
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0024")
+                    .CompilerError("JAB0026")
                     .WithLocation(1)
                     .WithArguments("NotPublisher<>", "IPublisher<>")
             );
         }
 
         [Fact]
-        public async Task ProducesJAB0024WhenOpenGenericImplementationFixesTypeArgument()
+        public async Task ProducesJAB0026WhenOpenGenericImplementationFixesTypeArgument()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -572,14 +573,14 @@ public partial class Container { }
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0024")
+                    .CompilerError("JAB0026")
                     .WithLocation(1)
                     .WithArguments("PublisherWithFixedType<>", "IPublisher<>")
             );
         }
 
         [Fact]
-        public async Task ProducesJAB0025WhenOpenGenericFactoryNotGenericMethod()
+        public async Task ProducesJAB0027WhenOpenGenericFactoryNotGenericMethod()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -594,14 +595,14 @@ public partial class Container
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0025")
+                    .CompilerError("JAB0027")
                     .WithLocation(1)
                     .WithArguments("PublisherFactory", "IPublisher<>", 1)
             );
         }
 
         [Fact]
-        public async Task ProducesJAB0026WhenOpenGenericFactoryReturnsWrongType()
+        public async Task ProducesJAB0028WhenOpenGenericFactoryReturnsWrongType()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -615,14 +616,14 @@ public partial class Container
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0026")
+                    .CompilerError("JAB0028")
                     .WithLocation(1)
                     .WithArguments("CreatePublisher", "object", "IPublisher<>")
             );
         }
 
         [Fact]
-        public async Task ProducesJAB0026WhenOpenGenericFactoryFixesTypeArgument()
+        public async Task ProducesJAB0028WhenOpenGenericFactoryFixesTypeArgument()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -636,14 +637,14 @@ public partial class Container
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0026")
+                    .CompilerError("JAB0028")
                     .WithLocation(1)
                     .WithArguments("CreatePublisher", "IPublisher<int>", "IPublisher<>")
             );
         }
 
         [Fact]
-        public async Task ProducesJAB0027WhenOpenGenericInterfaceHasNoImplementation()
+        public async Task ProducesJAB0029WhenOpenGenericInterfaceHasNoImplementation()
         {
             string testCode = @"
 public interface IPublisher<T> { }
@@ -654,7 +655,7 @@ public partial class Container { }
 
             await Verify.VerifyAnalyzerAsync(testCode,
                 DiagnosticResult
-                    .CompilerError("JAB0027")
+                    .CompilerError("JAB0029")
                     .WithLocation(1)
                     .WithArguments("IPublisher<>")
             );
