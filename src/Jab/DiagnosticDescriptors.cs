@@ -81,4 +81,32 @@ internal static class DiagnosticDescriptors
     public static readonly DiagnosticDescriptor NullableServiceRegistered = new("JAB0014",
         "Nullable dependency without a default value",
         "'{0}' parameter to construct '{1}' will never be null when constructing using a service provider. Add a default value to make the service reference optional", "Usage", DiagnosticSeverity.Info, true);
+
+    public static readonly DiagnosticDescriptor OpenGenericInstanceNotSupported = new("JAB0021",
+        "Open generic registrations cannot use instances",
+        "Open generic service '{0}' cannot be registered using an instance", "Usage", DiagnosticSeverity.Error, true);
+
+    public static readonly DiagnosticDescriptor OpenGenericImplementationMustBeOpenGeneric = new("JAB0022",
+        "Open generic implementations must be open generic definitions",
+        "The implementation type '{0}' for open generic service '{1}' must be an open generic type definition", "Usage", DiagnosticSeverity.Error, true);
+
+    public static readonly DiagnosticDescriptor OpenGenericImplementationArityMismatch = new("JAB0023",
+        "Open generic implementations must have matching arity",
+        "The implementation type '{0}' for open generic service '{1}' must declare exactly {2} type parameter(s)", "Usage", DiagnosticSeverity.Error, true);
+
+    public static readonly DiagnosticDescriptor OpenGenericImplementationNotAssignable = new("JAB0024",
+        "Open generic implementation must be assignable",
+        "The implementation type '{0}' for open generic service '{1}' must be assignable to the service", "Usage", DiagnosticSeverity.Error, true);
+
+    public static readonly DiagnosticDescriptor OpenGenericFactoryMustBeGenericMethod = new("JAB0025",
+        "Open generic factories must be generic methods",
+        "The factory member '{0}' for open generic service '{1}' must be a generic method with {2} type parameter(s)", "Usage", DiagnosticSeverity.Error, true);
+
+    public static readonly DiagnosticDescriptor OpenGenericFactoryReturnTypeNotAssignable = new("JAB0026",
+        "Open generic factory return type must be assignable",
+        "The factory method '{0}' must return a type assignable to open generic service '{2}', but returns '{1}'", "Usage", DiagnosticSeverity.Error, true);
+
+    public static readonly DiagnosticDescriptor OpenGenericServiceRequiresImplementation = new("JAB0027",
+        "Open generic service requires an implementation",
+        "Open generic service '{0}' must specify an implementation type or factory because it cannot be instantiated directly", "Usage", DiagnosticSeverity.Error, true);
 }

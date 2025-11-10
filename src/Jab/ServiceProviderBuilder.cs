@@ -7,6 +7,7 @@ internal class ServiceProviderBuilder
     private readonly ServiceProviderCallSite _serviceProviderCallsite;
     private readonly ScopeFactoryCallSite? _scopeFactoryCallSite;
     private readonly ServiceProviderIsServiceCallSite? _serviceProviderIsServiceCallSite;
+    private readonly HashSet<ServiceRegistration> _invalidOpenGenericRegistrations = new();
 
     public ServiceProviderBuilder(GeneratorContext context)
     {
@@ -21,6 +22,48 @@ internal class ServiceProviderBuilder
         {
             _serviceProviderIsServiceCallSite = new ServiceProviderIsServiceCallSite(_knownTypes.IServiceProviderIsServiceType);
         }
+    }
+
+    private static bool IsOpenGenericType(INamedTypeSymbol type)
+    {
+        if (type.IsUnboundGenericType)
+        {
+            return true;
+        }
+
+        return type.IsGenericType && type.IsDefinition;
+    }
+
+    private static INamedTypeSymbol GetGenericDefinition(INamedTypeSymbol type) =>
+        type.IsDefinition ? type : type.ConstructedFrom;
+
+    private static bool IsAssignableToOpenGeneric(INamedTypeSymbol serviceType, INamedTypeSymbol candidateType)
+    {
+        var serviceDefinition = GetGenericDefinition(serviceType);
+        var candidateDefinition = GetGenericDefinition(candidateType);
+
+        if (SymbolEqualityComparer.Default.Equals(candidateDefinition, serviceDefinition))
+        {
+            return true;
+        }
+
+        for (var baseType = candidateDefinition.BaseType; baseType != null; baseType = baseType.BaseType)
+        {
+            if (SymbolEqualityComparer.Default.Equals(GetGenericDefinition(baseType), serviceDefinition))
+            {
+                return true;
+            }
+        }
+
+        foreach (var implementedInterface in candidateDefinition.AllInterfaces)
+        {
+            if (SymbolEqualityComparer.Default.Equals(GetGenericDefinition(implementedInterface), serviceDefinition))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public ServiceProvider[] BuildRoots()
@@ -114,7 +157,7 @@ internal class ServiceProviderBuilder
         CallSiteCache callSites = new();
         foreach (var registration in description.ServiceRegistrations)
         {
-            if (registration.ServiceType.IsUnboundGenericType)
+            if (IsOpenGenericType(registration.ServiceType))
             {
                 continue;
             }
@@ -294,6 +337,11 @@ internal class ServiceProviderBuilder
             {
                 var registration = context.ProviderDescription.ServiceRegistrations[i];
 
+                if (_invalidOpenGenericRegistrations.Contains(registration))
+                {
+                    continue;
+                }
+
                 var callSite = TryMatchGeneric(serviceType, name, null, registration, context);
                 if (callSite != null)
                 {
@@ -314,7 +362,7 @@ internal class ServiceProviderBuilder
     {
         if (registration.Name == name &&
             serviceType is INamedTypeSymbol { IsGenericType: true } genericType &&
-            registration.ServiceType.IsUnboundGenericType &&
+            IsOpenGenericType(registration.ServiceType) &&
             SymbolEqualityComparer.Default.Equals(registration.ServiceType.ConstructedFrom,
                 genericType.ConstructedFrom))
         {
@@ -327,8 +375,12 @@ internal class ServiceProviderBuilder
             // TODO: This can use better error reporting
             if (registration.FactoryMember is IMethodSymbol factoryMethod)
             {
-                var constructedFactoryMethod = factoryMethod.ConstructedFrom.Construct(genericType.TypeArguments,
-                    genericType.TypeArgumentNullableAnnotations);
+                IMethodSymbol constructedFactoryMethod = factoryMethod;
+                if (factoryMethod.IsGenericMethod)
+                {
+                    constructedFactoryMethod = factoryMethod.ConstructedFrom.Construct(genericType.TypeArguments,
+                        genericType.TypeArgumentNullableAnnotations);
+                }
                 callSite = CreateFactoryCallSite(
                     identity,
                     genericType,
@@ -340,9 +392,28 @@ internal class ServiceProviderBuilder
             }
             else if (registration.ImplementationType != null)
             {
-                var implementationType =
-                    registration.ImplementationType.ConstructedFrom.Construct(genericType.TypeArguments,
+                var implementationType = registration.ImplementationType;
+                if (IsOpenGenericType(implementationType))
+                {
+                    implementationType = implementationType.ConstructedFrom.Construct(
+                        genericType.TypeArguments,
                         genericType.TypeArgumentNullableAnnotations);
+                }
+
+                var implementationDefinition = GetGenericDefinition(implementationType);
+                if (!SymbolEqualityComparer.Default.Equals(implementationDefinition, GetGenericDefinition(genericType)) &&
+                    !_context.Compilation.ClassifyConversion(implementationType, genericType).IsImplicit)
+                {
+                    var diagnostic = Diagnostic.Create(
+                        DiagnosticDescriptors.OpenGenericImplementationNotAssignable,
+                        registration.Location ?? Location.None,
+                        implementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                        genericType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat));
+                    _context.ReportDiagnostic(diagnostic);
+                    var errorCallSite = new ErrorCallSite(identity, diagnostic);
+                    context.CallSiteCache.Add(errorCallSite);
+                    return errorCallSite;
+                }
 
                 callSite = CreateConstructorCallSite(identity, registration, implementationType, context);
             }
@@ -403,6 +474,11 @@ internal class ServiceProviderBuilder
             for (int i = context.ProviderDescription.ServiceRegistrations.Count - 1; i >= 0; i--)
             {
                 var registration = context.ProviderDescription.ServiceRegistrations[i];
+
+                if (_invalidOpenGenericRegistrations.Contains(registration))
+                {
+                    continue;
+                }
 
                 var itemCallSite = TryMatchGeneric(enumerableService, null, reverseIndex, registration, context) ??
                                    TryMatchExact(enumerableService, null, reverseIndex, registration, context);
@@ -747,7 +823,7 @@ internal class ServiceProviderBuilder
             }
 
             if (genericType != null &&
-                registration.ServiceType.IsUnboundGenericType &&
+                IsOpenGenericType(registration.ServiceType) &&
                 SymbolEqualityComparer.Default.Equals(registration.ServiceType.ConstructedFrom,
                     genericType.ConstructedFrom))
             {
@@ -1057,7 +1133,144 @@ internal class ServiceProviderBuilder
             attributeData.ApplicationSyntaxReference?.GetSyntax().GetLocation(),
             memberLocation);
 
+        if (!ValidateOpenGenericRegistration(registration))
+        {
+            _invalidOpenGenericRegistrations.Add(registration);
+        }
+
         return true;
+    }
+
+    private bool ValidateOpenGenericRegistration(ServiceRegistration registration)
+    {
+        if (!IsOpenGenericType(registration.ServiceType))
+        {
+            return true;
+        }
+
+        bool isValid = true;
+        var location = registration.Location ?? Location.None;
+        var serviceDisplay = registration.ServiceType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat);
+
+        if (registration.InstanceMember != null)
+        {
+            var diagnostic = Diagnostic.Create(
+                DiagnosticDescriptors.OpenGenericInstanceNotSupported,
+                location,
+                serviceDisplay);
+            _context.ReportDiagnostic(diagnostic);
+            isValid = false;
+        }
+
+        if (registration.ImplementationType != null)
+        {
+            var implementationDefinition = GetGenericDefinition(registration.ImplementationType);
+
+            if (!IsOpenGenericType(implementationDefinition))
+            {
+                var diagnostic = Diagnostic.Create(
+                    DiagnosticDescriptors.OpenGenericImplementationMustBeOpenGeneric,
+                    location,
+                    registration.ImplementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                    serviceDisplay);
+                _context.ReportDiagnostic(diagnostic);
+                isValid = false;
+            }
+            else
+            {
+                if (implementationDefinition.Arity != registration.ServiceType.Arity)
+                {
+                    var diagnostic = Diagnostic.Create(
+                        DiagnosticDescriptors.OpenGenericImplementationArityMismatch,
+                        location,
+                        registration.ImplementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                        serviceDisplay,
+                        registration.ServiceType.Arity);
+                    _context.ReportDiagnostic(diagnostic);
+                    isValid = false;
+                }
+
+                if (!IsAssignableToOpenGeneric(registration.ServiceType, implementationDefinition))
+                {
+                    var diagnostic = Diagnostic.Create(
+                        DiagnosticDescriptors.OpenGenericImplementationNotAssignable,
+                        location,
+                        registration.ImplementationType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                        serviceDisplay);
+                    _context.ReportDiagnostic(diagnostic);
+                    isValid = false;
+                }
+            }
+        }
+        else if (registration.FactoryMember == null && registration.InstanceMember == null)
+        {
+            if (registration.ServiceType.TypeKind != TypeKind.Class || registration.ServiceType.IsAbstract)
+            {
+                var diagnostic = Diagnostic.Create(
+                    DiagnosticDescriptors.OpenGenericServiceRequiresImplementation,
+                    location,
+                    serviceDisplay);
+                _context.ReportDiagnostic(diagnostic);
+                isValid = false;
+            }
+        }
+
+        if (registration.FactoryMember != null)
+        {
+            if (registration.FactoryMember is not IMethodSymbol factoryMethod)
+            {
+                var diagnostic = Diagnostic.Create(
+                    DiagnosticDescriptors.OpenGenericFactoryMustBeGenericMethod,
+                    location,
+                    registration.FactoryMember.Name,
+                    serviceDisplay,
+                    registration.ServiceType.Arity);
+                _context.ReportDiagnostic(diagnostic);
+                isValid = false;
+            }
+            else
+            {
+                if (!factoryMethod.IsGenericMethod || factoryMethod.Arity != registration.ServiceType.Arity)
+                {
+                    var diagnostic = Diagnostic.Create(
+                        DiagnosticDescriptors.OpenGenericFactoryMustBeGenericMethod,
+                        location,
+                        factoryMethod.Name,
+                        serviceDisplay,
+                        registration.ServiceType.Arity);
+                    _context.ReportDiagnostic(diagnostic);
+                    isValid = false;
+                }
+                else if (factoryMethod.ReturnType is INamedTypeSymbol returnNamedType)
+                {
+                    var returnDefinition = GetGenericDefinition(returnNamedType);
+                    if (!IsAssignableToOpenGeneric(registration.ServiceType, returnDefinition))
+                    {
+                        var diagnostic = Diagnostic.Create(
+                            DiagnosticDescriptors.OpenGenericFactoryReturnTypeNotAssignable,
+                            location,
+                            factoryMethod.Name,
+                            returnNamedType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                            serviceDisplay);
+                        _context.ReportDiagnostic(diagnostic);
+                        isValid = false;
+                    }
+                }
+                else
+                {
+                    var diagnostic = Diagnostic.Create(
+                        DiagnosticDescriptors.OpenGenericFactoryReturnTypeNotAssignable,
+                        location,
+                        factoryMethod.Name,
+                        factoryMethod.ReturnType.ToDisplayString(SymbolDisplayFormat.CSharpErrorMessageFormat),
+                        serviceDisplay);
+                    _context.ReportDiagnostic(diagnostic);
+                    isValid = false;
+                }
+            }
+        }
+
+        return isValid;
     }
 
     private bool TryFindMember(ITypeSymbol typeSymbol,

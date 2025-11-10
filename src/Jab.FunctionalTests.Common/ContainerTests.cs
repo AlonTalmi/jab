@@ -1084,6 +1084,33 @@ namespace JabTests
         {
         }
 
+        [Fact]
+        public void CanResolveOpenGenericWithValueTypeArgument()
+        {
+            CanResolveOpenGenericWithValueTypeArgumentContainer c = new();
+            Assert.IsType<MessageBroker<int>>(c.GetService<IPublisher<int>>());
+        }
+
+        [ServiceProvider]
+        [Singleton(typeof(IPublisher<>), typeof(MessageBroker<>))]
+        partial class CanResolveOpenGenericWithValueTypeArgumentContainer
+        {
+        }
+
+        [Fact]
+        public void CanResolveOpenGenericUsingFactoryMethod()
+        {
+            CanResolveOpenGenericUsingFactoryMethodContainer c = new();
+            Assert.IsType<MessageBroker<string>>(c.GetService<IPublisher<string>>());
+        }
+
+        [ServiceProvider]
+        [Singleton(typeof(IPublisher<>), Factory = nameof(CreatePublisher))]
+        partial class CanResolveOpenGenericUsingFactoryMethodContainer
+        {
+            public IPublisher<T> CreatePublisher<T>() => new MessageBroker<T>();
+        }
+
 #region Non-generic member factory with parameters
         [Fact]
         public void CanUseSingletonFactoryWithParameters()
