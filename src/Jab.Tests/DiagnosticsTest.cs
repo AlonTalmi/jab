@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using Jab;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Testing;
 using Xunit;
@@ -424,7 +425,7 @@ public partial class Container {{}}
                     .WithLocation(1)
                     .WithArguments("IDependency?", "Service"));
         }
-
+        
         [Fact]
         public async Task AllowsExistingGenericAttribute()
         {
@@ -434,7 +435,7 @@ class Implementation : IService { }
 
 [ServiceProvider]
 [Singleton(typeof(Implementation))]
-[Existing<IService, Implementation>]
+[Existing(typeof(IService), typeof(Implementation))]
 public partial class Container { }
 ";
 
@@ -478,6 +479,186 @@ public partial class Container { }
                     .CompilerError("JAB0022")
                     .WithLocation(1)
                     .WithArguments("Implementation", "IService"));
+        }
+
+        [Fact]
+        public async Task ProducesJAB0023WhenOpenGenericRegistrationUsesInstance()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+public class Publisher<T> : IPublisher<T> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>), Instance = nameof(PublisherInstance))|}]
+public partial class Container
+{
+    public IPublisher<int> PublisherInstance => null;
+}
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0023")
+                    .WithLocation(1)
+                    .WithArguments("IPublisher<>")
+            );
+        }
+
+        [Fact]
+        public async Task ProducesJAB0024WhenOpenGenericImplementationIsClosed()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+public class ClosedPublisher : IPublisher<int> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>), typeof(ClosedPublisher))|}]
+public partial class Container { }
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0024")
+                    .WithLocation(1)
+                    .WithArguments("ClosedPublisher", "IPublisher<>")
+            );
+        }
+
+        [Fact]
+        public async Task ProducesJAB0025WhenOpenGenericImplementationArityMismatches()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+public class Publisher<T, TOther> : IPublisher<T> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>), typeof(Publisher<,>))|}]
+public partial class Container { }
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0025")
+                    .WithLocation(1)
+                    .WithArguments("Publisher<,>", "IPublisher<>", 1)
+            );
+        }
+
+        [Fact]
+        public async Task ProducesJAB0026WhenOpenGenericImplementationNotAssignable()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+public class NotPublisher<T> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>), typeof(NotPublisher<>))|}]
+public partial class Container { }
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0026")
+                    .WithLocation(1)
+                    .WithArguments("NotPublisher<>", "IPublisher<>")
+            );
+        }
+
+        [Fact]
+        public async Task ProducesJAB0026WhenOpenGenericImplementationFixesTypeArgument()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+public class PublisherWithFixedType<T> : IPublisher<int> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>), typeof(PublisherWithFixedType<>))|}]
+public partial class Container { }
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0026")
+                    .WithLocation(1)
+                    .WithArguments("PublisherWithFixedType<>", "IPublisher<>")
+            );
+        }
+
+        [Fact]
+        public async Task ProducesJAB0027WhenOpenGenericFactoryNotGenericMethod()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+public class MessageBroker<T> : IPublisher<T> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>), Factory = nameof(PublisherFactory))|}]
+public partial class Container
+{
+    public IPublisher<int> PublisherFactory => null;
+}
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0027")
+                    .WithLocation(1)
+                    .WithArguments("PublisherFactory", "IPublisher<>", 1)
+            );
+        }
+
+        [Fact]
+        public async Task ProducesJAB0028WhenOpenGenericFactoryReturnsWrongType()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>), Factory = nameof(CreatePublisher))|}]
+public partial class Container
+{
+    public object CreatePublisher<T>() => null;
+}
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0028")
+                    .WithLocation(1)
+                    .WithArguments("CreatePublisher", "object", "IPublisher<>")
+            );
+        }
+
+        [Fact]
+        public async Task ProducesJAB0028WhenOpenGenericFactoryFixesTypeArgument()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>), Factory = nameof(CreatePublisher))|}]
+public partial class Container
+{
+    public IPublisher<int> CreatePublisher<T>() => null;
+}
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0028")
+                    .WithLocation(1)
+                    .WithArguments("CreatePublisher", "IPublisher<int>", "IPublisher<>")
+            );
+        }
+
+        [Fact]
+        public async Task ProducesJAB0029WhenOpenGenericInterfaceHasNoImplementation()
+        {
+            string testCode = @"
+public interface IPublisher<T> { }
+[ServiceProvider]
+[{|#1:Singleton(typeof(IPublisher<>))|}]
+public partial class Container { }
+";
+
+            await Verify.VerifyAnalyzerAsync(testCode,
+                DiagnosticResult
+                    .CompilerError("JAB0029")
+                    .WithLocation(1)
+                    .WithArguments("IPublisher<>")
+            );
         }
     }
 }

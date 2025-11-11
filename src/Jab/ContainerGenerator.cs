@@ -812,6 +812,13 @@ public partial class ContainerGenerator : DiagnosticAnalyzer
         DiagnosticDescriptors.OnlyStringKeysAreSupported,
         DiagnosticDescriptors.NullableServiceNotRegistered,
         DiagnosticDescriptors.NullableServiceRegistered,
+        DiagnosticDescriptors.OpenGenericInstanceNotSupported,
+        DiagnosticDescriptors.OpenGenericImplementationMustBeOpenGeneric,
+        DiagnosticDescriptors.OpenGenericImplementationArityMismatch,
+        DiagnosticDescriptors.OpenGenericImplementationNotAssignable,
+        DiagnosticDescriptors.OpenGenericFactoryMustBeGenericMethod,
+        DiagnosticDescriptors.OpenGenericFactoryReturnTypeNotAssignable,
+        DiagnosticDescriptors.OpenGenericServiceRequiresImplementation,
         DiagnosticDescriptors.ExistingImplementationMustImplementService,
         DiagnosticDescriptors.ExistingImplementationTypeNotRegistered,
     }.ToImmutableArray();

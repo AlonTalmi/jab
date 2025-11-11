@@ -18,4 +18,10 @@
   <ItemGroup Condition="'$(FunctionalTestPackageVersion)' == ''" >
     <ProjectReference Include="..\Jab.Attributes\Jab.Attributes.csproj" ReferenceOutputAssembly="true" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\Jab.FunctionalTests.Common\Mocks\ServiceImplementationWithGenericServiceInConstructor.cs">
+      <Link>Mocks\ServiceImplementationWithGenericServiceInConstructor.cs</Link>
+    </Compile>
+  </ItemGroup>
 </Project>

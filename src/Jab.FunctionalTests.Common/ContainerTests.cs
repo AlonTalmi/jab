@@ -341,10 +341,28 @@ namespace JabTests
             Assert.IsType<AnotherServiceImplementation>(service.InnerService);
         }
 
-        [ServiceProvider(RootServices = new[] { typeof(IService<IAnotherService>) })]
+        [ServiceProvider]
         [Transient(typeof(IService<>), typeof(ServiceImplementation<>))]
         [Transient(typeof(IAnotherService), typeof(AnotherServiceImplementation))]
         internal partial class CanResolveOpenGenericServiceContainer { }
+        
+        [Fact]
+        public void CanResolveOpenGenericServiceFromConstructor()
+        {
+            CanResolveOpenGenericServiceFromConstructorContainer c = new();
+            var service = c.GetService<IService>();
+            Assert.IsType<ServiceImplementationWithGenericServiceInConstructor>(service);
+            var genericService = ((ServiceImplementationWithGenericServiceInConstructor)service).GenericService;
+            Assert.IsType<ServiceImplementation<IAnotherService>>(genericService);
+            var innerService = genericService.InnerService;
+            Assert.IsType<AnotherServiceImplementation>(innerService);
+        }
+
+        [ServiceProvider]
+        [Transient(typeof(IService<>), typeof(ServiceImplementation<>))]
+        [Transient(typeof(IService), typeof(ServiceImplementationWithGenericServiceInConstructor))]
+        [Transient(typeof(IAnotherService), typeof(AnotherServiceImplementation))]
+        internal partial class CanResolveOpenGenericServiceFromConstructorContainer { }
 
         [Fact]
         public void CanResolveEnumerableOfMixedOpenGenericService()
@@ -1082,6 +1100,33 @@ namespace JabTests
         [Scoped(typeof(IAnotherService), typeof(AnotherServiceImplementation))]
         partial class CanGetMultipleOpenGenericScopedContainer
         {
+        }
+
+        [Fact]
+        public void CanResolveOpenGenericWithValueTypeArgument()
+        {
+            CanResolveOpenGenericWithValueTypeArgumentContainer c = new();
+            Assert.IsType<MessageBroker<int>>(c.GetService<IPublisher<int>>());
+        }
+
+        [ServiceProvider]
+        [Singleton(typeof(IPublisher<>), typeof(MessageBroker<>))]
+        partial class CanResolveOpenGenericWithValueTypeArgumentContainer
+        {
+        }
+
+        [Fact]
+        public void CanResolveOpenGenericUsingFactoryMethod()
+        {
+            CanResolveOpenGenericUsingFactoryMethodContainer c = new();
+            Assert.IsType<MessageBroker<string>>(c.GetService<IPublisher<string>>());
+        }
+
+        [ServiceProvider]
+        [Singleton(typeof(IPublisher<>), Factory = nameof(CreatePublisher))]
+        partial class CanResolveOpenGenericUsingFactoryMethodContainer
+        {
+            public IPublisher<T> CreatePublisher<T>() => new MessageBroker<T>();
         }
 
 #region Non-generic member factory with parameters
